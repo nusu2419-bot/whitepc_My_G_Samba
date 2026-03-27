@@ -1,0 +1,12 @@
+# Ignore everything by default
+*
+
+# Allow directories so git can traverse into them
+!*/
+
+# Track only Python source files
+!*.py
+!README.md
+
+# Keep this file tracked
+!.gitignore
