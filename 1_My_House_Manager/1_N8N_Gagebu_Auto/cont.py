@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from excel_value_only_writer import write_sheets_value_only
 
 # 1. 경로 설정
 _base = os.path.dirname(os.path.abspath(__file__))
@@ -29,29 +30,30 @@ def create_management_sheet():
         # 최종적으로 추출할 열 목록
         target_cols = ['건물명', '호실', '임차인', 'Phone', '보증금', '월세', '관리비', '부가세', '입주일', '상태']
         
-        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            for building, rooms in room_config.items():
-                # 해당 건물의 전체 호실 틀 생성 (기본값 세팅)
-                base_df = pd.DataFrame({
-                    '건물명': building,
-                    '호실': rooms
-                })
-                
-                # '거주중' 데이터와 병합 (Left Join)
-                # 건물명과 호실이 모두 일치하는 행만 가져옵니다.
-                building_data = active_residents[active_residents['건물명'] == building]
-                merged_df = pd.merge(base_df, building_data, on=['건물명', '호실'], how='left')
-                # '입주일'을 날짜 문자열(YYYY-MM-DD)로 변환하여 시간 부분 제거
-                if '입주일' in merged_df.columns:
-                    merged_df['입주일'] = pd.to_datetime(merged_df['입주일'], errors='coerce').dt.strftime('%Y-%m-%d')
-                
-                # 요청하신 열만 선택하고 호실 순서대로 정렬
-                # 데이터가 없는 열은 자동으로 NaN(빈칸)으로 표시됩니다.
-                final_df = merged_df[target_cols].sort_values(by='호실')
-                
-                # 시트 생성 (시트명은 건물명으로 설정)
-                final_df.to_excel(writer, sheet_name=building, index=False)
-                print(f"[{building}] 시트 작성 완료 (호실 수: {len(rooms)})")
+        sheet_data = {}
+        for building, rooms in room_config.items():
+            # 해당 건물의 전체 호실 틀 생성 (기본값 세팅)
+            base_df = pd.DataFrame({
+                '건물명': building,
+                '호실': rooms
+            })
+            
+            # '거주중' 데이터와 병합 (Left Join)
+            # 건물명과 호실이 모두 일치하는 행만 가져옵니다.
+            building_data = active_residents[active_residents['건물명'] == building]
+            merged_df = pd.merge(base_df, building_data, on=['건물명', '호실'], how='left')
+            # '입주일'을 날짜 문자열(YYYY-MM-DD)로 변환하여 시간 부분 제거
+            if '입주일' in merged_df.columns:
+                merged_df['입주일'] = pd.to_datetime(merged_df['입주일'], errors='coerce').dt.strftime('%Y-%m-%d')
+            
+            # 요청하신 열만 선택하고 호실 순서대로 정렬
+            # 데이터가 없는 열은 자동으로 NaN(빈칸)으로 표시됩니다.
+            final_df = merged_df[target_cols].sort_values(by='호실')
+            sheet_data[building] = final_df
+            print(f"[{building}] 시트 작성 완료 (호실 수: {len(rooms)})")
+
+        # 기존 파일이 있으면 서식은 유지하고 값만 갱신
+        write_sheets_value_only(output_path, sheet_data)
                 
         print(f"\n파일 생성이 완료되었습니다: {output_path}")
 

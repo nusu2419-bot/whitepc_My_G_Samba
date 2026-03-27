@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from excel_value_only_writer import write_sheets_value_only
 
 # 1. 경로 설정
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,8 +39,8 @@ def export_unidentified_deposits():
         # 4. 날짜 내림차순 정렬 (최신순)
         unidentified_df = unidentified_df.sort_values(by=date_col, ascending=False)
 
-        # 5. 임시 열 삭제 후 엑셀 저장
-        unidentified_df.drop(columns=['temp_name']).to_excel(output_unidentified, index=False)
+        # 5. 임시 열 삭제 후 엑셀 저장 (기존 파일이 있으면 서식은 유지하고 값만 갱신)
+        write_sheets_value_only(output_unidentified, {"Sheet1": unidentified_df.drop(columns=['temp_name'])})
         
         print(f"미확인 입금 내역 추출 완료: {output_unidentified}")
         print(f"총 {len(unidentified_df)}건의 미확인 데이터가 발견되었습니다.")

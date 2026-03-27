@@ -1,6 +1,7 @@
 import pandas as pd
 import glob
 import os
+from excel_value_only_writer import write_sheets_value_only
 
 input_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Excel_Gagebu")
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +21,7 @@ if df_list:
     duplicates = merged_df[merged_df.duplicated(subset=[h_col], keep=False)]
     
     if not duplicates.empty:
-        duplicates.to_excel(output_duplicates, index=False)
+        write_sheets_value_only(output_duplicates, {"Sheet1": duplicates})
         print(f"중복 데이터 {len(duplicates)}건을 엑셀로 저장했습니다: {output_duplicates}")
     else:
         print("중복된 데이터가 없습니다.")
