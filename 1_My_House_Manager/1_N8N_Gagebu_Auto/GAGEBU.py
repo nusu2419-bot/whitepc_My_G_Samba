@@ -3,7 +3,7 @@ import glob
 import os
 from excel_value_only_writer import write_sheets_value_only
 
-input_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Excel_Gagebu")
+input_dir = "/mnt/photos/My_G_Samba/1_My_House_Manager/3_GageBu_Input"
 base_path = os.path.dirname(os.path.abspath(__file__))
 output_parquet = os.path.join(base_path, "merged_gagebu.parquet")
 output_duplicates = os.path.join(base_path, "duplicates_list.xlsx")
