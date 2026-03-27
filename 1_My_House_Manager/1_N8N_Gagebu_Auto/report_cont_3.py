@@ -6,7 +6,8 @@ from excel_value_only_writer import write_sheets_value_only
 base_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(base_dir, "A_CONTRACT.xlsx")
 parquet_path = os.path.join(base_dir, "merged_gagebu.parquet")
-output_unidentified = os.path.join(base_dir, "미확인_입금내역.xlsx")
+_report_dir = "/mnt/photos/My_G_Samba/1_My_House_Manager/4_Report"
+output_unidentified = os.path.join(_report_dir, "미확인_입금내역.xlsx")
 
 # 제외할 키워드
 exclude_keywords = ["퇴실자", "미확인", "입금자", "비어있음"]

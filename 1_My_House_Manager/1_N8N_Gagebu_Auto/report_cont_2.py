@@ -32,7 +32,8 @@ def create_individual_room_reports():
         gagebu_df['temp_name'] = gagebu_df[content_col].str.split('-').str[0].str.strip()
 
         for building, rooms in room_config.items():
-            building_file = os.path.join(base_dir, f"{building}_입금내역.xlsx")
+            _report_dir = "/mnt/photos/My_G_Samba/1_My_House_Manager/4_Report"
+            building_file = os.path.join(_report_dir, f"{building}_입금내역.xlsx")
 
             sheet_data = {}
             for room in rooms:

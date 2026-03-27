@@ -8,7 +8,8 @@ from excel_value_only_writer import write_sheets_value_only
 base_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(base_dir, "A_CONTRACT.xlsx")
 parquet_path = os.path.join(base_dir, "merged_gagebu.parquet")
-output_path = os.path.join(base_dir, "건물별_거주현황_명부.xlsx")
+_report_dir = "/mnt/photos/My_G_Samba/1_My_House_Manager/4_Report"
+output_path = os.path.join(_report_dir, "건물별_거주현황_명부.xlsx")
 template_path = os.path.join(base_dir, "건물별_거주현황_명부_template.xlsx")
 
 # 2. 건물별 호실 설정

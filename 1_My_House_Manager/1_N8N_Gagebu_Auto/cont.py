@@ -4,8 +4,9 @@ from excel_value_only_writer import write_sheets_value_only
 
 # 1. 경로 설정
 _base = os.path.dirname(os.path.abspath(__file__))
+_report_dir = "/mnt/photos/My_G_Samba/1_My_House_Manager/4_Report"
 input_path = os.path.join(_base, "A_CONTRACT.xlsx")
-output_path = os.path.join(_base, "건물별_거주현황_명부.xlsx")
+output_path = os.path.join(_report_dir, "건물별_거주현황_명부.xlsx")
 
 # 2. 각 건물의 전체 호실 리스트 (첨부하신 그림의 내용에 맞게 숫자를 수정하세요)
 # 여기에 적힌 호실들이 엑셀의 왼쪽 두 열(건물명, 호실)에 기본으로 생성됩니다.
