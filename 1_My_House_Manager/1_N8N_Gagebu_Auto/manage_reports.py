@@ -155,6 +155,20 @@ def wait_for_outputs(outputs, cwd, timeout, poll_interval=1.0):
     return False
 
 
+def _cleanup_old_baks(dst_path, keep=3):
+    """백업 파일(.bak.*.xlsx)을 최신 keep개만 남기고 삭제합니다."""
+    stem = dst_path.stem  # 예: 건물별_거주현황_명부_template
+    parent = dst_path.parent
+    bak_files = sorted(
+        parent.glob(f"{stem}.bak.*.{dst_path.suffix.lstrip('.')}"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True
+    )
+    for old in bak_files[keep:]:
+        old.unlink()
+        print(f"[CLEAN] 오래된 백업 삭제: {old.name}")
+
+
 def rename_outputs(rename_map, cwd):
     for src, dst in rename_map.items():
         src_path = Path(cwd) / src
@@ -165,6 +179,8 @@ def rename_outputs(rename_map, cwd):
                 bak = dst_path.with_name(dst_path.stem + f".bak.{int(time.time())}" + dst_path.suffix)
                 shutil.move(str(dst_path), str(bak))
                 print(f"[MOVE] 기존 {dst} -> {bak.name}")
+                # 최근 3개만 유지하고 나머지 삭제
+                _cleanup_old_baks(dst_path, keep=3)
             shutil.move(str(src_path), str(dst_path))
             print(f"[RENAME] {src} -> {dst}")
         else:
