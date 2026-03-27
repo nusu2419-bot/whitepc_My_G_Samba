@@ -20,31 +20,37 @@ import time
 import shutil
 import argparse
 import re
+from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent
+REPORT_DIR = Path("/mnt/photos/My_G_Samba/1_My_House_Manager/4_Report")
 
 SCRIPTS = {
     'merge': {
         'script': 'GAGEBU.py',
-        'outputs': ['merged_gagebu.parquet']
+        'outputs': [BASE_DIR / 'merged_gagebu.parquet']
     },
     'template': {
         'script': 'cont.py',
-        'outputs': ['건물별_거주현황_명부.xlsx'],
+        'outputs': [REPORT_DIR / '건물별_거주현황_명부.xlsx'],
         # template 단계는 원본 파일을 보존하기 위해 이름을 바꿉니다
-        'rename': {'건물별_거주현황_명부.xlsx': '건물별_거주현황_명부_template.xlsx'}
+        'rename': {REPORT_DIR / '건물별_거주현황_명부.xlsx': BASE_DIR / '건물별_거주현황_명부_template.xlsx'}
     },
     'report': {
         'script': 'report_cont.py',
-        'outputs': ['건물별_거주현황_명부.xlsx']
+        'outputs': [REPORT_DIR / '건물별_거주현황_명부.xlsx']
     },
     'per-room': {
         'script': 'report_cont_2.py',
-        'outputs': ['봉명동_입금내역.xlsx', '신부동_입금내역.xlsx', '쌍용동_입금내역.xlsx']
+        'outputs': [
+            REPORT_DIR / '봉명동_입금내역.xlsx',
+            REPORT_DIR / '신부동_입금내역.xlsx',
+            REPORT_DIR / '쌍용동_입금내역.xlsx',
+        ]
     },
     'unidentified': {
         'script': 'report_cont_3.py',
-        'outputs': ['미확인_입금내역.xlsx']
+        'outputs': [REPORT_DIR / '미확인_입금내역.xlsx']
     }
 }
 
@@ -124,7 +130,8 @@ def run_script(step_key, python_exe, cwd, retries=1, continue_on_error=False):
 
 
 def wait_for_outputs(outputs, cwd, timeout, poll_interval=1.0):
-    paths = [Path(cwd) / o for o in outputs]
+    # outputs가 절대경로 Path이면 그대로 사용, 상대경로 문자열이면 cwd 기준으로 해석
+    paths = [Path(o) if Path(o).is_absolute() else Path(cwd) / o for o in outputs]
     print(f"[WAIT] 출력 대기: {', '.join(p.name for p in paths)} (타임아웃 {timeout}s)")
     start = time.time()
     last_missing = None
@@ -157,6 +164,7 @@ def wait_for_outputs(outputs, cwd, timeout, poll_interval=1.0):
 
 def _cleanup_old_baks(dst_path, keep=3):
     """백업 파일(.bak.*.xlsx)을 최신 keep개만 남기고 삭제합니다."""
+    dst_path = Path(dst_path)
     stem = dst_path.stem  # 예: 건물별_거주현황_명부_template
     parent = dst_path.parent
     bak_files = sorted(
@@ -171,8 +179,9 @@ def _cleanup_old_baks(dst_path, keep=3):
 
 def rename_outputs(rename_map, cwd):
     for src, dst in rename_map.items():
-        src_path = Path(cwd) / src
-        dst_path = Path(cwd) / dst
+        # src/dst가 절대경로이면 그대로, 아니면 cwd 기준
+        src_path = Path(src) if Path(src).is_absolute() else Path(cwd) / src
+        dst_path = Path(dst) if Path(dst).is_absolute() else Path(cwd) / dst
         if src_path.exists():
             # 만약 대상이 이미 존재하면 백업 처리
             if dst_path.exists():
@@ -202,57 +211,85 @@ def parse_args():
     return p.parse_args()
 
 
+LOG_PATH = BASE_DIR / 'auto_log.log'
+LOG_MAX_LINES = 200
+
+
+def trim_log(log_path, max_lines):
+    """로그 파일이 max_lines를 초과하면 최신 항목만 남기고 오래된 항목 삭제합니다."""
+    if not log_path.exists():
+        return
+    try:
+        lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines(keepends=True)
+        if len(lines) > max_lines:
+            log_path.write_text(''.join(lines[-max_lines:]), encoding='utf-8')
+    except Exception as e:
+        print(f"[WARN] 로그 정리 실패: {e}")
+
+
 def main():
     args = parse_args()
 
-    if args.update_readme_tree and not args.all and not args.steps:
-        update_readme_tree(BASE_DIR, Path(args.readme_path))
-        return
+    # 실행 날짜/시간 헤더 출력 (auto_log.log에 기록됨)
+    print(f"\n{'='*50}")
+    print(f"[START] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*50}")
 
-    if args.all or not args.steps:
-        steps = ['merge', 'template', 'report', 'per-room', 'unidentified']
-    else:
-        steps = args.steps
-
-    print(f"[INFO] 작업 디렉터리: {BASE_DIR}")
-    for step in steps:
-        entry = SCRIPTS[step]
-        script_name = entry['script']
-
-        if args.dry_run:
-            print(f"[DRY] {step}: {script_name} -> 기대 출력: {entry.get('outputs')}")
-            continue
-
-        try:
-            ok = run_script(step, sys.executable, BASE_DIR, retries=args.retries, continue_on_error=args.continue_on_error)
-        except Exception as e:
-            print(f"[ERROR] {script_name} 실행 중 예외: {e}")
-            if not args.continue_on_error:
-                raise
-            ok = False
-
-        if not ok and not args.continue_on_error:
-            print(f"[FAIL] {step} 실패로 중단합니다.")
+    try:
+        if args.update_readme_tree and not args.all and not args.steps:
+            update_readme_tree(BASE_DIR, Path(args.readme_path))
             return
 
-        outputs = entry.get('outputs', [])
-        if outputs:
-            ready = wait_for_outputs(outputs, BASE_DIR, timeout=args.timeout, poll_interval=args.poll)
-            if not ready and not args.continue_on_error:
-                print(f"[FAIL] {step} 출력 준비 실패로 중단합니다.")
+        if args.all or not args.steps:
+            steps = ['merge', 'template', 'report', 'per-room', 'unidentified']
+        else:
+            steps = args.steps
+
+        print(f"[INFO] 작업 디렉터리: {BASE_DIR}")
+        for step in steps:
+            entry = SCRIPTS[step]
+            script_name = entry['script']
+
+            if args.dry_run:
+                print(f"[DRY] {step}: {script_name} -> 기대 출력: {entry.get('outputs')}")
+                continue
+
+            try:
+                ok = run_script(step, sys.executable, BASE_DIR, retries=args.retries, continue_on_error=args.continue_on_error)
+            except Exception as e:
+                print(f"[ERROR] {script_name} 실행 중 예외: {e}")
+                if not args.continue_on_error:
+                    raise
+                ok = False
+
+            if not ok and not args.continue_on_error:
+                print(f"[FAIL] {step} 실패로 중단합니다.")
                 return
 
-        # template 단계에 한해 원본 파일을 템플릿 이름으로 보존
-        if 'rename' in entry and entry['rename']:
-            rename_outputs(entry['rename'], BASE_DIR)
+            outputs = entry.get('outputs', [])
+            if outputs:
+                ready = wait_for_outputs(outputs, BASE_DIR, timeout=args.timeout, poll_interval=args.poll)
+                if not ready and not args.continue_on_error:
+                    print(f"[FAIL] {step} 출력 준비 실패로 중단합니다.")
+                    return
 
-        print(f"[SLEEP] {args.delay}s 대기...")
-        time.sleep(args.delay)
+            # template 단계에 한해 원본 파일을 템플릿 이름으로 보존
+            if 'rename' in entry and entry['rename']:
+                rename_outputs(entry['rename'], BASE_DIR)
 
-    if args.update_readme_tree:
-        update_readme_tree(BASE_DIR, Path(args.readme_path))
+            print(f"[SLEEP] {args.delay}s 대기...")
+            time.sleep(args.delay)
 
-    print('[DONE] 선택된 모든 단계 완료')
+        if args.update_readme_tree:
+            update_readme_tree(BASE_DIR, Path(args.readme_path))
+
+        print('[DONE] 선택된 모든 단계 완료')
+
+    finally:
+        # 정상/오류/중단 모두 [END] 기록 및 로그 200줄 유지
+        print(f"[END]   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        sys.stdout.flush()
+        trim_log(LOG_PATH, LOG_MAX_LINES)
 
 
 if __name__ == '__main__':
